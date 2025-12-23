@@ -1,0 +1,31 @@
+Tag Name,Vendor,Category,Endpoints
+Google Analytics 4,Google,Analytics,www.google-analytics.com/g/collect; www.google-analytics.com/mp/collect; region1.google-analytics.com/mp/collect; www.googletagmanager.com
+Adobe Analytics,Adobe,Analytics,metrics.adobe.com; dpm.demdex.net
+Microsoft Clarity,Microsoft,Session Analytics,clarity.ms; static.clarity.ms
+Hotjar,Hotjar,Session Analytics,static.hotjar.com; script.hotjar.com
+Adobe Launch / DTM,Adobe,Tag Manager,assets.adobedtm.com; assets.adobedtm.com/satellite
+Tealium,Tealium,Tag Manager,tags.tiqcdn.com
+Meta (Facebook) Pixel,Meta,Social Ads,connect.facebook.net; graph.facebook.com
+LinkedIn Insight Tag,LinkedIn,Social Ads,px.ads.linkedin.com
+Twitter/X Ads Pixel,Twitter/X,Social Ads,static.ads-twitter.com; analytics.twitter.com
+Pinterest Tag,Pinterest,Social Ads,ct.pinterest.com
+TikTok Pixel,TikTok,Social Ads,analytics.tiktok.com
+Snapchat Pixel / CAPI,Snapchat,Social Ads,tr.snapchat.com
+Microsoft Ads (Bing UET),Microsoft,Advertising,bat.bing.com
+Google Ads / Conversion Linker,Google,Advertising,googleadservices.com; pagead2.googlesyndication.com
+Floodlight Counter,Google (CM360),Advertising,fls.doubleclick.net; ad.doubleclick.net/ddm/activity
+Floodlight Sales,Google (CM360),Advertising,fls.doubleclick.net; ad.doubleclick.net/ddm/activity
+Amazon Advertising,Amazon,Advertising,aax.amazon-adsystem.com; mads.amazon.com
+Criteo,Criteo,Retargeting,static.criteo.net; dis.criteo.com
+Taboola Pixel,Taboola,Native Ads,trc.taboola.com; cdn.taboola.com
+Outbrain Pixel,Outbrain,Native Ads,track.outbrain.com; tr.outbrain.com
+HubSpot Tracking,HubSpot,CRM/Marketing,js.hs-scripts.com; js.hs-analytics.net; track.hubspot.com
+Salesforce Pardot,Salesforce,CRM/Marketing,pi.pardot.com; go.pardot.com
+Partnerize,Partnerize,Affiliate,prf.hn/click; prf.hn/conversion; api.partnerize.com
+Retail Ads,RetailAds,Affiliate,retailads.net
+Lead Alliance,Lead Alliance,Affiliate,lead-alliance.net
+Ladenzelle (Visual Meta),Ladenzelle,Affiliate,ladenzeile.de; github.com/ladenzeile/gtm-vendor-landing-template
+Shopping24,Shopping24,Affiliate,s24.com; tracking.s24.com/v1/conversion-tracking
+Stylight,Stylight,Affiliate,partner.stylight.net; stylight.com
+Solute,Solute,Affiliate,solute.com
+Fatmedia,Fatmedia,Affiliate,fatmedia.io; fatmedia.co.uk

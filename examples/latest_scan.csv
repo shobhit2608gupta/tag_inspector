@@ -1,0 +1,5 @@
+url,status,ga4,fb,adobe,datalayer_valid
+https://www.cs.cmu.edu/~grossman/hcil/form_test.html,404,False,False,False,False
+http://www.cs.cmu.edu/,200,True,True,False,False
+https://www.cs.cmu.edu/~emc/spring06/home1_files/p4-pugh.pdf,200,False,False,False,False
+https://www.cs.cmu.edu/~harchol/Probability/chapters/chpt23.pdf,200,False,False,False,False

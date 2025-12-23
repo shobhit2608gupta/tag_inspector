@@ -13,22 +13,29 @@ import streamlit as st
 import os, sys, subprocess
 import streamlit as st
 
+import os, sys, subprocess
+import streamlit as st
+
 @st.cache_resource(show_spinner=False)
-def ensure_playwright():
+def ensure_playwright_browsers():
     """
-    Streamlit Cloud sometimes installs playwright without downloading browsers.
-    This ensures Chromium exists. Runs once per container due to cache_resource.
+    Streamlit Cloud cannot run sudo, so never use --with-deps at runtime.
+    System deps must be provided via packages.txt.
     """
     try:
         os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", "/home/appuser/.cache/ms-playwright")
+
+        # Only install the browser binaries (no sudo)
         subprocess.run(
-            [sys.executable, "-m", "playwright", "install", "--with-deps", "chromium"],
+            [sys.executable, "-m", "playwright", "install", "chromium"],
             check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.STDOUT,
         )
     except Exception:
         pass
 
-ensure_playwright()
+ensure_playwright_browsers()
 
 # --- Playwright + Streamlit on Windows fix ---
 if sys.platform.startswith("win"):

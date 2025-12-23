@@ -10,31 +10,25 @@ import textwrap
 import pandas as pd
 import streamlit as st
 
+import os, sys, subprocess
+import streamlit as st
+
 @st.cache_resource(show_spinner=False)
-def ensure_playwright_browsers():
+def ensure_playwright():
     """
-    Best-effort:
-    - On hosts like Streamlit Cloud / GitHub deploys, Playwright browsers may not be present.
-    - This tries to install them once, without crashing the app if it fails.
+    Streamlit Cloud sometimes installs playwright without downloading browsers.
+    This ensures Chromium exists. Runs once per container due to cache_resource.
     """
     try:
-        # If playwright isn't installed, nothing to do
-        import playwright  # noqa: F401
-
-        # Install browsers (idempotent)
+        os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", "/home/appuser/.cache/ms-playwright")
         subprocess.run(
-            [sys.executable, "-m", "playwright", "install", "chromium"],
+            [sys.executable, "-m", "playwright", "install", "--with-deps", "chromium"],
             check=False,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
         )
     except Exception:
-        # Don't hard-fail; crawler will raise a clear error if browsers are missing.
         pass
 
-# Call it once at startup
-ensure_playwright_browsers()
-
+ensure_playwright()
 
 # --- Playwright + Streamlit on Windows fix ---
 if sys.platform.startswith("win"):

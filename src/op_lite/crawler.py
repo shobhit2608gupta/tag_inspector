@@ -23,6 +23,7 @@ class Crawler:
         auto_play_video: bool = False,
         wait_until: str = "load",  # "load" | "domcontentloaded" | "networkidle"
         auto_accept_cookies: bool = True,
+        gcs_mode: str = None,  # None | "G100" | "G111" - Simulate Google Consent Signal
     ):
         self.start_url = start_url
         self.max_pages = int(max_pages)
@@ -38,6 +39,7 @@ class Crawler:
         self.auto_play_video = auto_play_video
         self.wait_until = wait_until
         self.auto_accept_cookies = auto_accept_cookies
+        self.gcs_mode = gcs_mode  # G100=deny, G111=accept
 
     # ------------------------------------------------------------------
     # Helper functions
@@ -55,6 +57,24 @@ class Crawler:
         if href.startswith(("javascript:", "mailto:")):
             return None
         return urljoin(base, href.split("#")[0])
+
+    def _inject_gcs_parameter(self, url: str) -> str:
+        """Inject GCS parameter to URL for consent simulation"""
+        if not self.gcs_mode:
+            return url
+        
+        # Parse URL and add/replace gcs parameter
+        from urllib.parse import parse_qs, urlunparse, urlencode
+        parsed = urlparse(url)
+        params = parse_qs(parsed.query, keep_blank_values=True)
+        
+        # Set gcs parameter
+        params['gcs'] = [self.gcs_mode]
+        
+        # Rebuild query string
+        new_query = urlencode(params, doseq=True)
+        return urlunparse((parsed.scheme, parsed.netloc, parsed.path, 
+                          parsed.params, new_query, parsed.fragment))
 
     # ------------------------------------------------------------------
     # Cookie consent handler
@@ -130,8 +150,23 @@ class Crawler:
 
     def _auto_fill_and_submit_form(self, page):
         """
-        Try to auto-fill and submit the first <form> on the page.
-        Returns a small audit dict with attempt/success/error.
+        Auto-fill and submit the first <form> on the page.
+        
+        Enhanced tracking:
+        - Records what test data was entered
+        - Tracks email, phone, name fields
+        - Records submission success/failure
+        - Generates form audit with entered_data dict
+        
+        Returns audit dict with:
+        {
+            attempted: bool,
+            success: bool,
+            error: string or None,
+            entered_data: {field_name: value, ...},
+            form_fields: [list of detected field types],
+            timestamp: submission timestamp
+        }
         """
         try:
             forms = page.query_selector_all("form")
@@ -141,6 +176,8 @@ class Crawler:
                 "attempted": True,
                 "success": False,
                 "error": "query_selector_all failed",
+                "entered_data": {},
+                "form_fields": [],
             }
 
         if not forms:
@@ -148,10 +185,16 @@ class Crawler:
                 "attempted": False,
                 "success": False,
                 "error": "no form found",
+                "entered_data": {},
+                "form_fields": [],
             }
 
         logger.info("Auto-submitting first form on page")
         form = forms[0]
+        
+        # Track what we're entering into the form
+        entered_data = {}
+        form_fields = []
 
         try:
             form.scroll_into_view_if_needed()
@@ -165,18 +208,39 @@ class Crawler:
                 el_type = (el.get_attribute("type") or "text").lower()
                 name = (el.get_attribute("name") or "").lower()
                 id_ = (el.get_attribute("id") or "").lower()
+                placeholder = (el.get_attribute("placeholder") or "").lower()
 
                 if el_type in ("hidden", "checkbox", "radio", "file"):
                     continue
 
-                if "email" in name or "email" in id_ or el_type == "email":
-                    value = "test@example.com"
-                elif "name" in name or "name" in id_:
+                # Detect field type and assign test data
+                field_type = "text"
+                if "email" in name or "email" in id_ or "email" in placeholder or el_type == "email":
+                    value = "testuser@example.com"
+                    field_type = "email"
+                elif "phone" in name or "phone" in id_ or "phone" in placeholder or el_type == "tel":
+                    value = "+15551234567"
+                    field_type = "phone"
+                elif "name" in name or "name" in id_ or "name" in placeholder:
                     value = "Test User"
+                    field_type = "name"
                 elif el_type == "password":
                     value = "Password123!"
+                    field_type = "password"
                 else:
                     value = "test"
+                    field_type = "text"
+
+                # Track the form field and value
+                form_fields.append({
+                    "type": field_type,
+                    "name": name or id_ or placeholder,
+                    "html_type": el_type
+                })
+                
+                # Store entered data (use name or id as key)
+                field_key = name or id_ or placeholder or f"field_{len(entered_data)}"
+                entered_data[field_key] = value
 
                 try:
                     el.fill(value)
@@ -217,6 +281,9 @@ class Crawler:
                 "attempted": True,
                 "success": True,
                 "error": None,
+                "entered_data": entered_data,
+                "form_fields": form_fields,
+                "timestamp": int(time.time() * 1000),
             }
 
         except Exception as e:
@@ -225,6 +292,9 @@ class Crawler:
                 "attempted": True,
                 "success": False,
                 "error": str(e),
+                "entered_data": entered_data,
+                "form_fields": form_fields,
+                "timestamp": int(time.time() * 1000),
             }
 
     # ------------------------------------------------------------------
@@ -351,19 +421,24 @@ class Crawler:
                 self.visited.add(url)
                 requests.clear()
 
+                # Inject GCS parameter if in GCS mode
+                visit_url = self._inject_gcs_parameter(url)
+                if self.gcs_mode:
+                    logger.info("GCS mode: %s - URL modified for consent simulation", self.gcs_mode)
+
                 try:
                     start = time.time()
                     resp = page.goto(
-                        url,
+                        visit_url,
                         timeout=DEFAULT_TIMEOUT,
                         wait_until=self.wait_until,
                     )
                     load_time = time.time() - start
                     status = resp.status if resp else None
                 except PWError as e:
-                    logger.warning("Navigation error on %s: %s", url, e)
+                    logger.warning("Navigation error on %s: %s", visit_url, e)
                     self.results.append(
-                        {"url": url, "status": None, "error": str(e)}
+                        {"url": url, "status": None, "error": str(e), "gcs_mode": self.gcs_mode}
                     )
                     continue
 
@@ -412,6 +487,7 @@ class Crawler:
                     "html": html[:10000] if html else None,
                     "form_audit": form_result,
                     "video_audit": video_result,
+                    "gcs_mode": self.gcs_mode,  # Track which GCS mode this was scanned in
                 }
 
                 self.results.append(page_result)

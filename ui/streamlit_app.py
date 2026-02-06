@@ -883,32 +883,10 @@ def aggregate_results(results):
             if present:
                 unique_tags.add(name)
 
-        # Check if page is blocked (403 or contains bot detection indicators)
-        blocked = False
-        if status == 403 or status == 429:
-            blocked = True
-        elif status != 200:
-            # Check for common bot detection pages
-            html_lower = html.lower()
-            if any(indicator in html_lower for indicator in [
-                'access denied', 'blocked', 'bot detected', 'security check',
-                'verify you are human', 'cloudflare', '403 forbidden'
-            ]):
-                blocked = True
-        
-        # If blocked, don't count PII or tags since we didn't get the real page
-        if blocked:
-            pii_email_count = 0
-            pii_tel_count = 0
-            pii_cc_count = 0
-            pii_exposure = False
-            detectors = {k: False for k in detectors}  # No tags detected
-
         rows.append(
             {
                 "url": p.get("url"),
                 "status": status,
-                "blocked": blocked,
                 "load_time": load_time,
                 "page_size_kb": page_size_kb,
                 "has_datalayer": has_datalayer,
@@ -1974,24 +1952,6 @@ if not st.session_state["has_results"]:
             st.caption(
                 "Limit how deep and how wide Tag Auditor should crawl from the start URL."
             )
-        
-        # Add stealth mode option
-        stealth_mode = st.checkbox(
-            "🕵️ Stealth Mode",
-            value=False,
-            help="Enable enhanced stealth features to avoid bot detection: random user agents, human-like behavior, Firefox browser, realistic browser fingerprinting."
-        )
-        
-        # Add proxy option (placeholder for future implementation)
-        use_proxy = st.checkbox(
-            "🌐 Use Proxy (Future)",
-            value=False,
-            disabled=True,
-            help="Use residential proxies to bypass IP-based blocking (not yet implemented)"
-        )
-        
-        if use_proxy:
-            st.info("Proxy support will be added in a future update. For now, try using a VPN or residential proxy service externally.")
 
     # Add dual consent mode toggle
     st.write("---")
@@ -2029,7 +1989,6 @@ if not st.session_state["has_results"]:
                         wait_until="load",
                         auto_accept_cookies=True,
                         gcs_mode="G100",  # CONSENT DENIED
-                        stealth_mode=stealth_mode,
                     )
                     results_denied = crawler_denied.crawl()
                     st.success(f"✓ Consent DENIED scan: {len(results_denied)} pages")
@@ -2050,7 +2009,6 @@ if not st.session_state["has_results"]:
                         wait_until="load",
                         auto_accept_cookies=True,
                         gcs_mode="G111",  # CONSENT ACCEPTED
-                        stealth_mode=stealth_mode,
                     )
                     results_accepted = crawler_accepted.crawl()
                     st.success(f"✓ Consent ACCEPTED scan: {len(results_accepted)} pages")
@@ -2081,7 +2039,6 @@ if not st.session_state["has_results"]:
                 auto_play_video=True,
                 wait_until="load",
                 auto_accept_cookies=True,
-                stealth_mode=stealth_mode,
             )
 
             with st.spinner(
@@ -2159,19 +2116,6 @@ if st.session_state["has_results"]:
     with top_col2:
         st.button("Start new scan", on_click=clear_results)
 
-    # Check for blocked pages and show warning
-    blocked_pages_count = (
-        int(df_summary["blocked"].sum())
-        if "blocked" in df_summary
-        else 0
-    )
-    if blocked_pages_count > 0:
-        total_pages = len(df_summary)
-        if blocked_pages_count == total_pages:
-            st.error(f"⚠️ **All {total_pages} pages were blocked by bot detection!** The website is preventing automated access, so no analytics data could be captured. Try a different website or contact the site owner about their bot protection policies.")
-        else:
-            st.warning(f"⚠️ **{blocked_pages_count} out of {total_pages} pages were blocked by bot detection.** Some data may be missing.")
-
     tab_labels = [
         "📊 Summary",
         "📄 Pages",
@@ -2203,11 +2147,6 @@ if st.session_state["has_results"]:
         broken_pages = (
             int(df_summary["status"].fillna(0).ge(400).sum())
             if "status" in df_summary
-            else 0
-        )
-        blocked_pages = (
-            int(df_summary["blocked"].sum())
-            if "blocked" in df_summary
             else 0
         )
         datalayer_loaded = (
@@ -2248,14 +2187,6 @@ if st.session_state["has_results"]:
                 "title": f"{broken_pages} pages",
                 "subtitle": "HTTP 4xx / 5xx responses.",
                 "meta": "Status health",
-            },
-            {
-                "icon": "🤖",
-                "icon_color": color_cycle(6),
-                "pill": "Blocked pages",
-                "title": f"{blocked_pages} pages",
-                "subtitle": "Pages blocked by bot detection.",
-                "meta": "Access issues",
             },
             {
                 "icon": "🏷️",
@@ -2351,7 +2282,6 @@ if st.session_state["has_results"]:
             meta = (
                 f"{status or '-'} • {round(load_time, 2) if pd.notna(load_time) else '-'}s • "
                 f"{unique_vendor_tags} vendors • {broken_vendor_calls} broken"
-                f"{' • BLOCKED' if row.get('blocked') else ''}"
             )
             page_cards.append(
                 {
@@ -2398,15 +2328,6 @@ if st.session_state["has_results"]:
     with tabs[3]:
         st.caption("← Use the **Summary** tab above to go back.")
         st.subheader("Tag Inventory — Detail")
-        
-        # Check for blocked pages
-        blocked_pages_count = (
-            int(df_summary["blocked"].sum())
-            if "blocked" in df_summary
-            else 0
-        )
-        if blocked_pages_count > 0:
-            st.warning(f"⚠️ **{blocked_pages_count} pages were blocked by bot detection.** Tag analysis is not available for blocked pages since the actual website content could not be accessed.")
 
         ti_pages = ti_summary.get("pages_scanned", len(df_summary))
         ti_unique = ti_summary.get("unique_tags", 0)
@@ -2436,15 +2357,6 @@ if st.session_state["has_results"]:
     with tabs[5]:
         st.caption("← Use the **Summary** tab above to go back.")
         st.subheader("PII Exposure — Detail")
-        
-        # Check for blocked pages
-        blocked_pages_count = (
-            int(df_summary["blocked"].sum())
-            if "blocked" in df_summary
-            else 0
-        )
-        if blocked_pages_count > 0:
-            st.warning(f"⚠️ **{blocked_pages_count} pages were blocked by bot detection.** PII analysis is not available for blocked pages since the actual website content could not be accessed.")
         
         # Consent violation warning
         if pii_overall.get('consent_violations', 0) > 0:
